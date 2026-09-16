@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: wikimind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wikimind
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - wikimind-pgdata:/var/lib/postgresql/data
+
+volumes:
+  wikimind-pgdata:
