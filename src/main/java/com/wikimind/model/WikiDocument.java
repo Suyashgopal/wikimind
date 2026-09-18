@@ -10,10 +10,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
-/**
- * One chunk of a Wikipedia article, stored alongside its embedding
- * so it can be retrieved by vector similarity search.
- */
+// One chunk of a wiki article, stored alongside its embedding so it can be retrieved by vector similarity search.
 @Entity
 @Table(name = "wiki_documents")
 public class WikiDocument {
