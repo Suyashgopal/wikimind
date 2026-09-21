@@ -27,6 +27,7 @@ services:
         condition: service_healthy
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
       DB_URL: jdbc:postgresql://postgres:5432/wikimind
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
