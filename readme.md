@@ -197,6 +197,7 @@ Content-Type: application/json
 Authorization: Bearer <token>
 
 {
+  "title": "Remote Work Policy",
   "content": "The company's remote work policy allows up to three days per week from home."
 }
 ```
