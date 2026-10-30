@@ -34,3 +34,6 @@ build/
 
 ### Environment ###
 .env
+
+### Frontend build output ###
+src/main/resources/static/

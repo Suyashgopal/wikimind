@@ -14,8 +14,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,6 +36,20 @@ class SecurityRulesTest {
     private RagService ragService;
 
     private static final String ASK_BODY = "{\"question\":\"hi\"}";
+
+    // The built frontend may be absent in tests, so 404 is fine here; only an auth rejection is a failure.
+    @Test
+    void frontendPagesAreReachableWithoutToken() throws Exception {
+        for (String path : new String[]{"/", "/index.html", "/assets/app.js", "/favicon.svg"}) {
+            int status = mockMvc.perform(get(path)).andReturn().getResponse().getStatus();
+            assertTrue(status != 401 && status != 403, path + " was rejected with " + status);
+        }
+    }
+
+    @Test
+    void otherPathsStayDenied() throws Exception {
+        mockMvc.perform(get("/application.properties")).andExpect(status().isUnauthorized());
+    }
 
     @Test
     void requestWithoutTokenIsUnauthorized() throws Exception {
