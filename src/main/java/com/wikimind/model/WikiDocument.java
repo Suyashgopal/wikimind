@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
-// One chunk of a wiki article, stored alongside its embedding so it can be retrieved by vector similarity search.
+// One chunk of a document, stored alongside its embedding so it can be retrieved by vector similarity search.
 @Entity
 @Table(name = "wiki_documents")
 public class WikiDocument {
@@ -20,6 +20,9 @@ public class WikiDocument {
 
     @Column(name = "source_title")
     private String sourceTitle;
+
+    @Column(name = "org_id", nullable = false)
+    private String orgId;
 
     @Column(columnDefinition = "TEXT")
     private String text;
@@ -32,8 +35,9 @@ public class WikiDocument {
     public WikiDocument() {
     }
 
-    public WikiDocument(String sourceTitle, String text, float[] embedding) {
+    public WikiDocument(String sourceTitle, String orgId, String text, float[] embedding) {
         this.sourceTitle = sourceTitle;
+        this.orgId = orgId;
         this.text = text;
         this.embedding = embedding;
     }
@@ -52,6 +56,14 @@ public class WikiDocument {
 
     public void setSourceTitle(String sourceTitle) {
         this.sourceTitle = sourceTitle;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
     }
 
     public String getText() {

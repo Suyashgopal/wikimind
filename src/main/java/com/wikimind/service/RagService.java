@@ -14,6 +14,7 @@ import java.util.stream.IntStream;
 /**
  * Orchestrates the RAG pipeline: chunk + embed + store on ingest,
  * then embed + retrieve + prompt-stuff + generate on query.
+ * All operations are scoped to the caller's organization.
  */
 @Service
 public class RagService {
@@ -33,26 +34,26 @@ public class RagService {
 
     /**
      * Splits the content into overlapping chunks, embeds each one,
-     * and stores it under the given source title.
+     * and stores it under the given source title and organization.
      */
-    public int ingest(String sourceTitle, String content) {
+    public int ingest(String sourceTitle, String orgId, String content) {
         List<String> chunks = chunkText(content);
         for (String chunk : chunks) {
             float[] vector = embeddingModel.embed(chunk);
-            wikiDocumentRepository.save(new WikiDocument(sourceTitle, chunk, vector));
+            wikiDocumentRepository.save(new WikiDocument(sourceTitle, orgId, chunk, vector));
         }
         return chunks.size();
     }
 
     /**
-     * Embeds the question, retrieves the most relevant stored chunks,
-     * and asks the chat model to answer using only that context.
+     * Embeds the question, retrieves the most relevant stored chunks within the
+     * caller's organization, and asks the chat model to answer using only that context.
      */
-    public String answer(String question) {
+    public String answer(String question, String orgId) {
         float[] queryVector = embeddingModel.embed(question);
         String vectorLiteral = toVectorLiteral(queryVector);
 
-        List<WikiDocument> topDocs = wikiDocumentRepository.searchSimilar(vectorLiteral, TOP_K);
+        List<WikiDocument> topDocs = wikiDocumentRepository.searchSimilar(vectorLiteral, orgId, TOP_K);
         if (topDocs.isEmpty()) {
             return "I don't have any documents to answer that yet — ingest something first.";
         }

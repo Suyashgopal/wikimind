@@ -51,7 +51,7 @@ class SecurityRulesTest {
 
     @Test
     void requestWithValidMemberTokenIsAllowed() throws Exception {
-        when(ragService.answer(anyString())).thenReturn("ok");
+        when(ragService.answer(anyString(), anyString())).thenReturn("ok");
         String token = jwtService.generateToken(new AppUser("alice", "hash", Role.MEMBER, "acme"));
 
         mockMvc.perform(post("/api/rag/ask")

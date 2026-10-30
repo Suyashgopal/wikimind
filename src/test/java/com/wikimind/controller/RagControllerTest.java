@@ -1,17 +1,27 @@
 package com.wikimind.controller;
 
 import com.wikimind.exception.GlobalExceptionHandler;
+import com.wikimind.security.AuthUser;
 import com.wikimind.service.RagService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,15 +32,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(GlobalExceptionHandler.class)
 class RagControllerTest {
 
+    private static final String ORG = "acme";
+
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
     private RagService ragService;
 
+    @BeforeEach
+    void authenticateAsMember() {
+        AuthUser principal = new AuthUser("alice", ORG);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, List.of(new SimpleGrantedAuthority("ROLE_MEMBER"))));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void addReturnsNumberOfStoredChunks() throws Exception {
-        when(ragService.ingest(anyString(), anyString())).thenReturn(2);
+        when(ragService.ingest(anyString(), anyString(), anyString())).thenReturn(2);
 
         mockMvc.perform(post("/api/rag/add")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -53,7 +77,7 @@ class RagControllerTest {
 
     @Test
     void askReturnsAnswer() throws Exception {
-        when(ragService.answer(anyString())).thenReturn("Pizza Day");
+        when(ragService.answer(anyString(), anyString())).thenReturn("Pizza Day");
 
         mockMvc.perform(post("/api/rag/ask")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -72,12 +96,30 @@ class RagControllerTest {
 
     @Test
     void unexpectedFailuresBecomeCleanServerErrors() throws Exception {
-        when(ragService.answer(anyString())).thenThrow(new RuntimeException("gemini down"));
+        when(ragService.answer(anyString(), anyString())).thenThrow(new RuntimeException("gemini down"));
 
         mockMvc.perform(post("/api/rag/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\":\"hi\"}"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value(500));
+    }
+
+    @Test
+    void ingestAndAskUseOrgFromJwtNotFromRequest() throws Exception {
+        when(ragService.ingest(anyString(), anyString(), anyString())).thenReturn(1);
+        when(ragService.answer(anyString(), anyString())).thenReturn("ok");
+
+        mockMvc.perform(post("/api/rag/add")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"T\",\"content\":\"c\",\"orgId\":\"evil-corp\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/rag/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"q\",\"orgId\":\"evil-corp\"}"))
+                .andExpect(status().isOk());
+
+        verify(ragService).ingest(eq("T"), eq(ORG), eq("c"));
+        verify(ragService).answer(eq("q"), eq(ORG));
     }
 }

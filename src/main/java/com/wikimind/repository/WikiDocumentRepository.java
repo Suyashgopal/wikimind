@@ -12,21 +12,20 @@ import java.util.List;
 public interface WikiDocumentRepository extends JpaRepository<WikiDocument, String> {
 
     /**
-     * Nearest-neighbour search using PGVector's cosine distance operator ({@code <=>}).
+     * Nearest-neighbour search using PGVector's cosine distance operator ({@code <=>}),
+     * restricted to the caller's own organization.
      * Rows are ordered by distance to the query vector, closest first.
      */
     @Query(value = """
-        SELECT id, source_title, text, embedding
+        SELECT id, source_title, org_id, text, embedding
         FROM wiki_documents
+        WHERE org_id = :orgId
         ORDER BY embedding <=> cast(:queryVector AS vector)
         LIMIT :topK
         """, nativeQuery = true)
     List<WikiDocument> searchSimilar(
             @Param("queryVector") String queryVector,
+            @Param("orgId") String orgId,
             @Param("topK") int topK
     );
-
-    boolean existsBySourceTitle(String sourceTitle);
-
-    long countBySourceTitle(String sourceTitle);
 }

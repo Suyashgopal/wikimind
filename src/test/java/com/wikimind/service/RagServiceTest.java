@@ -26,6 +26,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RagServiceTest {
 
+    private static final String ORG = "acme";
+
     @Mock
     private EmbeddingModel embeddingModel;
 
@@ -42,7 +44,7 @@ class RagServiceTest {
     void ingestSplitsLongTextIntoOverlappingChunks() {
         when(embeddingModel.embed(anyString())).thenReturn(new float[]{0.1f, 0.2f});
 
-        int stored = ragService.ingest("Policy", "a".repeat(1200));
+        int stored = ragService.ingest("Policy", ORG, "a".repeat(1200));
 
         // chunk size 500, overlap 50 -> starts at 0, 450, 900
         assertEquals(3, stored);
@@ -51,7 +53,7 @@ class RagServiceTest {
 
     @Test
     void ingestOfBlankTextStoresNothing() {
-        int stored = ragService.ingest("Empty", "   ");
+        int stored = ragService.ingest("Empty", ORG, "   ");
 
         assertEquals(0, stored);
         verify(repository, never()).save(any());
@@ -60,9 +62,9 @@ class RagServiceTest {
     @Test
     void answerTellsCallerWhenNothingIsStored() {
         when(embeddingModel.embed(anyString())).thenReturn(new float[]{0.1f});
-        when(repository.searchSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(repository.searchSimilar(anyString(), anyString(), anyInt())).thenReturn(List.of());
 
-        String answer = ragService.answer("What is Friday?");
+        String answer = ragService.answer("What is Friday?", ORG);
 
         assertTrue(answer.contains("ingest"));
         verify(chatModel, never()).call(anyString());
@@ -71,11 +73,11 @@ class RagServiceTest {
     @Test
     void answerPutsRetrievedContextAndQuestionIntoPrompt() {
         when(embeddingModel.embed(anyString())).thenReturn(new float[]{0.1f, 0.2f});
-        when(repository.searchSimilar(anyString(), anyInt()))
-                .thenReturn(List.of(new WikiDocument("Policy", "Friday is Pizza Day.", new float[]{0.1f})));
+        when(repository.searchSimilar(anyString(), anyString(), anyInt()))
+                .thenReturn(List.of(new WikiDocument("Policy", ORG, "Friday is Pizza Day.", new float[]{0.1f})));
         when(chatModel.call(anyString())).thenReturn("Pizza Day");
 
-        String answer = ragService.answer("What happens on Friday?");
+        String answer = ragService.answer("What happens on Friday?", ORG);
 
         assertEquals("Pizza Day", answer);
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
@@ -85,12 +87,12 @@ class RagServiceTest {
     }
 
     @Test
-    void answerSendsQueryVectorAsPgVectorLiteral() {
+    void answerSendsQueryVectorAsPgVectorLiteralScopedToCallerOrg() {
         when(embeddingModel.embed(anyString())).thenReturn(new float[]{0.5f, -1.0f});
-        when(repository.searchSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(repository.searchSimilar(anyString(), anyString(), anyInt())).thenReturn(List.of());
 
-        ragService.answer("anything");
+        ragService.answer("anything", ORG);
 
-        verify(repository).searchSimilar("[0.5,-1.0]", 3);
+        verify(repository).searchSimilar("[0.5,-1.0]", ORG, 3);
     }
 }
