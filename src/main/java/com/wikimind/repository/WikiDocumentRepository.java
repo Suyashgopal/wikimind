@@ -11,11 +11,8 @@ import java.util.List;
 @Repository
 public interface WikiDocumentRepository extends JpaRepository<WikiDocument, String> {
 
-    /**
-     * Nearest-neighbour search using PGVector's cosine distance operator ({@code <=>}),
-     * restricted to the caller's own organization.
-     * Rows are ordered by distance to the query vector, closest first.
-     */
+    //nearest serch using pgvec cosine distance operator restricted to the caller's own organization rows are ordered by distance to the query vector, closest first.
+
     @Query(value = """
         SELECT id, source_title, org_id, text, embedding
         FROM wiki_documents
