@@ -1,5 +1,7 @@
 package com.wikimind.exception;
 
+import com.google.genai.errors.ApiException;
+import com.google.genai.errors.GenAiIOException;
 import com.wikimind.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -41,6 +43,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UsernameTakenException.class)
     public ResponseEntity<ErrorResponse> handleUsernameTaken(UsernameTakenException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    // The SDK has already retried 429/5xx by the time these arrive, so report them as upstream failures, not as our bugs.
+    @ExceptionHandler({ApiException.class, GenAiIOException.class})
+    public ResponseEntity<ErrorResponse> handleAiProvider(RuntimeException ex, HttpServletRequest request) {
+        if (ex instanceof ApiException api && api.code() == 429) {
+            log.warn("AI provider rate limit on {}: {}", request.getRequestURI(), api.message());
+            return build(HttpStatus.SERVICE_UNAVAILABLE,
+                    "The AI provider is rate-limiting requests. Please try again shortly.", request);
+        }
+        log.error("AI provider failure on {}", request.getRequestURI(), ex);
+        return build(HttpStatus.BAD_GATEWAY,
+                "The AI provider could not process the request. Please try again later.", request);
     }
 
     @ExceptionHandler(Exception.class)

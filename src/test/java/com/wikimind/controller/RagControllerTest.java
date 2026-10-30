@@ -1,5 +1,8 @@
 package com.wikimind.controller;
 
+import com.google.genai.errors.ClientException;
+import com.google.genai.errors.GenAiIOException;
+import com.google.genai.errors.ServerException;
 import com.wikimind.exception.GlobalExceptionHandler;
 import com.wikimind.security.AuthUser;
 import com.wikimind.service.RagService;
@@ -121,5 +124,44 @@ class RagControllerTest {
 
         verify(ragService).ingest(eq("T"), eq(ORG), eq("c"));
         verify(ragService).answer(eq("q"), eq(ORG));
+    }
+
+    @Test
+    void geminiRateLimitBecomesServiceUnavailable() throws Exception {
+        when(ragService.answer(anyString(), anyString()))
+                .thenThrow(new ClientException(429, "RESOURCE_EXHAUSTED", "quota exceeded"));
+
+        mockMvc.perform(post("/api/rag/ask").contentType(MediaType.APPLICATION_JSON).content("{\"question\":\"hi\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503));
+    }
+
+    @Test
+    void geminiClientErrorBecomesBadGateway() throws Exception {
+        when(ragService.answer(anyString(), anyString()))
+                .thenThrow(new ClientException(400, "INVALID_ARGUMENT", "API key not valid"));
+
+        mockMvc.perform(post("/api/rag/ask").contentType(MediaType.APPLICATION_JSON).content("{\"question\":\"hi\"}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.message").value("The AI provider could not process the request. Please try again later."));
+    }
+
+    @Test
+    void geminiServerErrorBecomesBadGateway() throws Exception {
+        when(ragService.answer(anyString(), anyString()))
+                .thenThrow(new ServerException(503, "UNAVAILABLE", "overloaded"));
+
+        mockMvc.perform(post("/api/rag/ask").contentType(MediaType.APPLICATION_JSON).content("{\"question\":\"hi\"}"))
+                .andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void geminiTimeoutBecomesBadGateway() throws Exception {
+        when(ragService.ingest(anyString(), anyString(), anyString()))
+                .thenThrow(new GenAiIOException("Failed to execute HTTP request.", new java.io.InterruptedIOException("timeout")));
+
+        mockMvc.perform(post("/api/rag/add").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"T\",\"content\":\"c\"}"))
+                .andExpect(status().isBadGateway());
     }
 }
