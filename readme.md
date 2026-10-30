@@ -14,6 +14,7 @@ context for the answer.
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
+- [Frontend](#frontend)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Authentication and Authorization](#authentication-and-authorization)
@@ -78,11 +79,12 @@ documents a query is allowed to retrieve.
 |---|---|
 | Language / Runtime | Java 25 |
 | Application Framework | Spring Boot 3.5 |
-| AI Integration | Spring AI 1.1, Google Gemini (`gemini-2.5-flash`, `text-embedding-004`) |
+| AI Integration | Spring AI 1.1, Google Gemini (`gemini-3.5-flash`, `gemini-embedding-001`) |
 | Persistence | Spring Data JPA, Hibernate, `hibernate-vector` |
 | Database | PostgreSQL 16 with the PGVector extension |
 | Authentication | Spring Security, JSON Web Tokens |
 | API Documentation | springdoc-openapi (Swagger UI) |
+| Frontend | React, Vite, plain CSS; Vitest and React Testing Library |
 | Containerization | Docker, Docker Compose |
 | Testing | JUnit 5, Mockito |
 | Build Tool | Maven (via Maven Wrapper) |
@@ -103,6 +105,9 @@ wikimind/
     application.properties
   src/test/java/com/wikimind/
     ...             Unit and integration tests
+  frontend/
+    src/            React screens, API client, auth state
+    src/test/       Frontend tests
   docker-compose.yml
   .env.example
   pom.xml
@@ -153,6 +158,27 @@ wikimind/
 
 6. The API is available at `http://localhost:8080`, and interactive documentation
    at `http://localhost:8080/swagger-ui.html`.
+
+## Frontend
+
+A React single-page app in `frontend/`. Its production build is written to
+`src/main/resources/static/`, so Spring Boot serves the page and the API from
+one port and no CORS configuration is needed.
+
+| Login | Upload | Ask |
+|---|---|---|
+| ![Login screen](docs/screenshots/login.jpg) | ![Upload progress](docs/screenshots/upload.jpg) | ![Answer from a document](docs/screenshots/ask.jpg) |
+
+Files are read in the browser and sent to `POST /api/rag/add` one at a time.
+Accepted types are `.md` and `.txt`, up to 100 KB each. Requires Node.js 22 or newer.
+
+| Mode | Commands | URL |
+|---|---|---|
+| Development (live reload, `/api` proxied to port 8080) | `.\mvnw spring-boot:run`, then in `frontend/`: `npm install`, `npm run dev` | `http://localhost:5173` |
+| Production build | In `frontend/`: `npm install`, `npm run build`; then `.\mvnw spring-boot:run` | `http://localhost:8080` |
+| Docker (builds everything) | `docker compose up --build` | `http://localhost:8080` |
+
+Run the frontend tests with `npm test` in `frontend/`.
 
 ## Configuration
 
@@ -291,7 +317,7 @@ and `postgres` (PostgreSQL with the PGVector extension pre-installed).
 | Multi-file ingestion | Planned |
 | Redis-backed response caching | Planned |
 | Rate limiting | Planned |
-| Minimal web frontend | Planned |
+| Minimal web frontend | Complete |
 
 ## License
 
